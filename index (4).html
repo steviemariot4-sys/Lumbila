@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lumbila CDSS Results</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--tx:#1b2430;--mu:#5b6675;--ac:#1f4e78;--ac2:#e3edf7;--bd:#d5dbe3;--bad:#c0392b;--ok:#1e8449;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181d;--card:#1d232b;--tx:#e8edf3;--mu:#9aa6b5;--ac:#7fb2e5;--ac2:#243445;--bd:#333c47;--bad:#ff7b6b;--ok:#58d68d}}
+:root[data-theme="dark"]{--bg:#14181d;--card:#1d232b;--tx:#e8edf3;--mu:#9aa6b5;--ac:#7fb2e5;--ac2:#243445;--bd:#333c47;--bad:#ff7b6b;--ok:#58d68d}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 Arial,Helvetica,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:12px}
+header{background:var(--ac);color:#fff;padding:14px;border-radius:10px}
+header h1{margin:0;font-size:19px}header p{margin:2px 0 0;font-size:13px;opacity:.9}
+.tabs{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
+.tabs button,.btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer}
+.tabs button.on,.btn.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) header,:root:not([data-theme="light"]) .tabs button.on,:root:not([data-theme="light"]) .btn.pri{color:#0d1722}}
+.btn:disabled{opacity:.5;cursor:default}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+select,input{font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)}
+input.m{width:88px;text-align:center}input.bad{border-color:var(--bad);color:var(--bad)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--bd);padding:6px 8px;text-align:center;white-space:nowrap;font-size:14px}
+th{background:var(--ac2)}td.l{text-align:left}
+.f{color:var(--bad);font-weight:bold}.mu{color:var(--mu);font-size:13px}.ok{color:var(--ok)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{background:var(--ac2);border-radius:14px;padding:3px 10px;font-size:12px}
+.rc h2{margin:0;text-align:center}.rc .sub{text-align:center;margin:2px 0 10px;font-weight:bold}
+@media print{.noprint{display:none!important}body{background:#fff;color:#000}.card{border:0}}
+.full{width:100%;margin-bottom:8px}.top{display:flex;justify-content:space-between;align-items:center;gap:8px}</style></head>
+<body><div class="wrap" id="app"><div class="card">Loading…</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPA_URL="https://bzypaxnwzuytzvacujui.supabase.co",SUPA_KEY="sb_publishable_Tx3DE9ASXGub9N7rMJwBEQ_whTDTkUo";
+const SCHOOL="LUMBILA CDSS";
+const B12=[[80,"A","Excellent"],[70,"B+","Very Good"],[60,"B","Good"],[50,"C","Average"],[39,"D","Pass"],[0,"F","Fail"]];
+const MEANS=[["1","Distinction","Excellent"],["2","Distinction","Excellent"],["3","Credit","Very good"],["4","Credit","Good"],["5","Credit","Good"],["6","Credit","Satisfactory"],["7","Pass","Ordinary pass"],["8","Pass","Weak pass"],["9","Fail","Unsuccessful"]];
+const DEF34=[80,75,70,65,60,55,50,40];
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+const S={user:null,prof:null,form:1,tab:"entry",sub:null,draft:null,dirty:false,card:0,students:[],subjects:[],assign:[],marks:[],mx:{},cc:{},hc:{},set:{},profiles:[]};
+const TA="width:100%;padding:8px;font:inherit;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)";
+function el(t,a,...k){const e=document.createElement(t);if(a)for(const x in a){const v=a[x];if(x==="class")e.className=v;else if(x.slice(0,2)==="on")e.addEventListener(x.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(x,v===true?"":v)}for(const c of k.flat())if(c!=null)e.append(c.nodeType?c:document.createTextNode(c));return e}
+const app=document.getElementById("app");
+const fail=e=>alert("Problem: "+(e&&e.message||e));
+const isHead=()=>S.prof&&(S.prof.role==="head"||S.prof.role==="admin");
+const isAdmin=()=>S.prof&&S.prof.role==="admin";
+const RL=[["pending","Waiting"],["teacher","Teacher"],["head","Head teacher"],["admin","Administrator"]];
+const shown=r=>(!isAdmin()&&r==="admin")?"teacher":r;
+const roleOpts=cur=>isAdmin()?RL:cur==="admin"?[["admin","Teacher"]]:RL.filter((o,i)=>(i>=RL.findIndex(x=>x[0]===cur)&&i<=2)||o[0]===cur);
+const students=()=>S.students.filter(x=>x.form===S.form).sort((a,b)=>a.ord-b.ord);
+const subjects=()=>S.subjects.filter(x=>x.form===S.form).sort((a,b)=>a.ord-b.ord).map(x=>x.name);
+const mySubjects=()=>isHead()?subjects():subjects().filter(s=>S.assign.some(a=>a.teacher_id===S.user.id&&a.form===S.form&&a.subject===s));
+const locked=()=>S.set.locked==="true";
+const termLine=()=>(S.set.term||"Term 1")+", "+(S.set.year||"2026");
+const upper=()=>S.form>=3;
+const scale34=()=>{try{const a=JSON.parse(S.set.scale34);if(Array.isArray(a)&&a.length===8&&a.every(x=>typeof x==="number"))return a}catch(e){}return DEF34};
+const bounds=()=>upper()?scale34().map((v,i)=>[v,MEANS[i][0],MEANS[i][2]]).concat([[0,"9","Unsuccessful"]]):B12;
+const passMark=()=>upper()?scale34()[7]:39;
+const failG=()=>upper()?"9":"F";
+const gradeOf=p=>{p=Math.round(p*10)/10;return bounds().find(b=>p>=b[0])};
+const keyLine=()=>"Grading: "+bounds().map((b,i,a)=>b[1]+" "+b[0]+"–"+(i?a[i-1][0]-1:100)+" "+b[2]).join(" · ")+(upper()?" (1–2 Distinction, 3–6 Credit, 7–8 Pass, 9 Fail)":"");
+const fmt=(p,d=0)=>p===null||p===undefined?"":p.toFixed(d);
+async function all(t,f){let out=[],i=0;for(;;){let q=sb.from(t).select("*").range(i,i+999);if(f)q=f(q);const{data,error}=await q;if(error)throw error;out=out.concat(data);if(data.length<1000)break;i+=1000}return out}
+async function loadMarks(){S.marks=await all("marks",q=>q.eq("form",S.form));S.mx={};S.marks.forEach(m=>{(S.mx[m.subject]=S.mx[m.subject]||{})[m.student_id]=m})}
+async function loadAll(){
+ const[st,su,as,cc,hc,se,pr]=await Promise.all(["students","subjects","assignments","class_comments","head_comments","settings","profiles_view"].map(t=>all(t)));
+ S.students=st;S.subjects=su;S.assign=as;S.set={};se.forEach(r=>S.set[r.key]=r.value);S.profiles=pr;
+ S.cc={};cc.forEach(r=>S.cc[r.student_id]=r.text);S.hc={};hc.forEach(r=>S.hc[r.student_id]=r.text);
+ await loadMarks();loadDraft()}
+function loadDraft(){const ms=mySubjects();if(!ms.includes(S.sub))S.sub=ms[0]||null;const m=S.mx[S.sub]||{};const d={marks:{},max:100};
+ Object.keys(m).forEach(k=>{d.marks[k]=Number(m[k].mark);d.max=Number(m[k].out_of)});S.draft=d;S.dirty=false}
+async function reload(){try{await loadAll()}catch(e){fail(e)}render()}
+function calc(){
+ const L=students(),sj=subjects();
+ const rows=L.map((s,i)=>{let tot=0,cnt=0;
+  const sc=sj.map(n=>{const m=S.mx[n]&&S.mx[n][s.id];if(!m)return null;const p=Number(m.mark)/Number(m.out_of)*100;tot+=p;cnt++;return p});
+  return{id:s.id,no:i+1,name:s.name,sc,avg:cnt?tot/cnt:null}});
+ rows.forEach(r=>{if(r.avg===null){r.pos="";r.g=null;r.res="";return}
+  r.pos=1+rows.filter(o=>o.avg!==null&&o.avg>r.avg+1e-9).length;r.g=gradeOf(r.avg);r.res=Math.round(r.avg*10)/10>=passMark()?"PASS":"FAIL"});
+ return rows}
+const noStu=()=>el("div",{class:"card"},"No students in Form "+S.form+" yet. Open the ",el("b",null,"Students")," tab and add the names (type or paste, one per line).");
+
+/* ---------- login ---------- */
+function loginView(msg){
+ const em=el("input",{type:"email",class:"full",placeholder:"Email",autocomplete:"username"}),pw=el("input",{type:"password",class:"full",placeholder:"Password (6 or more characters)",autocomplete:"current-password"}),nm=el("input",{type:"text",class:"full",placeholder:"Full name (only for a new account)"});
+ const out=el("p",{class:"mu"},msg||"");
+ const go=async f=>{out.textContent="Please wait…";try{const r=await f();if(r.error)throw r.error;if(r.data&&r.data.session)await start(r.data.session.user);else out.textContent="Account created. Check your email to confirm, then sign in. The head teacher must approve you before you can see anything."}catch(e){out.textContent=e.message||"Could not sign in"}};
+ app.replaceChildren(el("header",null,el("h1",null,SCHOOL+" — Results"),el("p",null,"Sign in with your school email")),
+  el("div",{class:"card",style:"margin-top:12px"},em,pw,nm,
+   el("div",{class:"row"},el("button",{class:"btn pri",onclick:()=>go(()=>sb.auth.signInWithPassword({email:em.value.trim(),password:pw.value}))},"Sign in"),
+    el("button",{class:"btn",onclick:()=>go(()=>sb.auth.signUp({email:em.value.trim(),password:pw.value,options:{data:{full_name:nm.value.trim()}}}))},"Create account")),out))}
+function pendingView(){app.replaceChildren(el("header",null,el("h1",null,SCHOOL+" — Results")),
+ el("div",{class:"card",style:"margin-top:12px"},el("p",null,"Your account ("+S.user.email+") is waiting for approval by the head teacher."),el("p",{class:"mu"},"Ask them to approve you, then tap Check again."),
+  el("div",{class:"row"},el("button",{class:"btn pri",onclick:()=>start(S.user)},"Check again"),el("button",{class:"btn",onclick:()=>sb.auth.signOut().then(()=>loginView())},"Sign out"))))}
+async function start(u){S.user=u;
+ const{data,error}=await sb.from("profiles").select("*").eq("id",u.id).maybeSingle();
+ if(error||!data){loginView("Could not load your profile. Try again.");return}
+ S.prof=data;if(data.role==="pending"){pendingView();return}
+ app.replaceChildren(el("div",{class:"card"},"Loading…"));await reload()}
+
+/* ---------- entry ---------- */
+function entryView(){
+ const L=students(),ms=mySubjects();if(!L.length)return noStu();
+ if(!ms.length)return el("div",{class:"card"},isHead()?"No subjects set for this form. Open Setup to add them.":"No subjects are assigned to you in Form "+S.form+" yet. Ask the head teacher to assign you.");
+ const D=S.draft,ro=locked()&&!isHead();
+ const status=el("span",{class:"mu"}),count=el("span",{class:"mu"});
+ const upd=()=>{count.textContent=Object.keys(D.marks).length+" of "+L.length+" entered"};
+ const orig=S.mx[S.sub]||{};
+ const save=el("button",{class:"btn pri",disabled:!S.dirty||ro,onclick:async()=>{
+  for(const k in D.marks){const v=D.marks[k];if(isNaN(v)||v<0||v>D.max){status.textContent="Fix the red marks first (0 to "+D.max+").";return}}
+  save.disabled=true;status.textContent="Saving…";
+  try{const rows=[],clear=[];
+   for(const s of L){const v=D.marks[s.id];if(v===undefined){if(orig[s.id])clear.push(s.id)}else rows.push({student_id:s.id,form:S.form,subject:S.sub,mark:v,out_of:D.max,updated_by:S.user.id,updated_at:new Date().toISOString()})}
+   if(rows.length){const{error}=await sb.from("marks").upsert(rows,{onConflict:"student_id,subject"});if(error)throw error}
+   if(clear.length){const{error}=await sb.from("marks").delete().eq("subject",S.sub).in("student_id",clear);if(error)throw error}
+   await loadMarks();S.dirty=false;status.textContent="Saved ✓"}
+  catch(e){status.textContent="Could not save: "+(e.message||"try again");save.disabled=false}}});
+ const sel=el("select",{onchange:e=>{if(S.dirty&&!confirm("Discard unsaved marks?")){e.target.value=S.sub;return}S.sub=e.target.value;loadDraft();render()}},ms.map(s=>el("option",{value:s,selected:s===S.sub},s)));
+ const max=el("input",{type:"number",class:"m",min:1,value:D.max,disabled:ro,onchange:e=>{D.max=parseFloat(e.target.value)||100;S.dirty=true;render()}});
+ const rows=L.map((s,i)=>{const v=D.marks[s.id];
+  const inp=el("input",{type:"number",inputmode:"decimal",step:"any",min:0,class:"m"+(v!==undefined&&(isNaN(v)||v<0||v>D.max)?" bad":""),value:v===undefined?"":v,disabled:ro,
+   oninput:e=>{const t=e.target.value;if(t==="")delete D.marks[s.id];else D.marks[s.id]=parseFloat(t);S.dirty=true;save.disabled=false;e.target.classList.toggle("bad",t!==""&&(isNaN(t)||t<0||t>D.max));upd()}});
+  return el("tr",null,el("td",null,i+1),el("td",{class:"l"},s.name),el("td",null,inp))});
+ upd();
+ return el("div",{class:"card"},locked()?el("p",{class:"f"},isHead()?"Marks are locked for teachers (you can still edit).":"Marks are locked by the head teacher."):null,
+  el("div",{class:"row"},el("label",null,"Subject: "),sel,el("label",null,"Out of: "),max),
+  el("div",{class:"row"},save,status,count),
+  el("div",{class:"scroll"},el("table",null,el("tr",null,el("th",null,"No."),el("th",null,"Student"),el("th",null,"Mark")),rows)))}
+
+/* ---------- students / comments ---------- */
+function studentsView(){
+ const L=students(),ta=el("textarea",{rows:5,style:TA,placeholder:"Type or paste names here, one per line"}),st=el("span",{class:"mu"});
+ const add=el("button",{class:"btn pri",onclick:async()=>{
+  const names=ta.value.split("\n").map(x=>x.replace(/^\s*\d+[.)]?\s*/,"").trim()).filter(Boolean);
+  if(!names.length){st.textContent="Type at least one name.";return}
+  add.disabled=true;st.textContent="Adding…";const t=Date.now();
+  try{const{error}=await sb.from("students").insert(names.map((n,k)=>({form:S.form,name:n.slice(0,60),ord:t+k})));if(error)throw error;await reload()}
+  catch(e){st.textContent="Could not add: "+e.message;add.disabled=false}}},"Add names");
+ const rows=L.map((s,i)=>el("tr",null,el("td",null,i+1),el("td",{class:"l"},s.name),isAdmin()?el("td",null,el("button",{class:"btn",onclick:async()=>{if(confirm("Remove "+s.name+"? Their marks will be deleted too.")){const{error}=await sb.from("students").delete().eq("id",s.id);if(error)fail(error);else reload()}}},"Remove")):null));
+ return el("div",null,el("div",{class:"card"},el("b",null,"Add students to Form "+S.form),ta,el("div",{class:"row",style:"margin-top:8px"},add,st)),
+  el("div",{class:"card scroll"},el("p",{class:"mu"},L.length+" students in Form "+S.form),L.length?el("table",null,rows):null))}
+function commentsView(){
+ const L=students();if(!L.length)return noStu();if(S.card>=L.length)S.card=0;
+ const i=S.card,s=L[i],st=el("span",{class:"mu"});
+ const ta=el("textarea",{rows:4,maxlength:400,style:TA,placeholder:"Class teacher’s comment for this student"},S.cc[s.id]||"");
+ const go=d=>{S.card=Math.min(L.length-1,Math.max(0,i+d));render()};
+ const sel=el("select",{onchange:e=>{S.card=+e.target.value;render()}},L.map((n,k)=>el("option",{value:k,selected:k===i},(k+1)+". "+n.name)));
+ const sv=el("button",{class:"btn pri",onclick:async()=>{const{error}=await sb.from("class_comments").upsert({student_id:s.id,text:ta.value.trim(),updated_by:S.user.id});if(error)st.textContent="Could not save: "+error.message;else{S.cc[s.id]=ta.value.trim();st.textContent="Saved ✓"}}},"Save comment");
+ return el("div",{class:"card"},el("div",{class:"row"},el("button",{class:"btn",onclick:()=>go(-1)},"‹ Prev"),sel,el("button",{class:"btn",onclick:()=>go(1)},"Next ›")),ta,el("div",{class:"row",style:"margin-top:8px"},sv,st))}
+
+/* ---------- head views ---------- */
+function resultsView(){
+ const R=calc(),sj=subjects();if(!R.length)return noStu();
+ const chips=sj.map(n=>el("span",{class:"chip"},n+": "+Object.keys(S.mx[n]||{}).filter(k=>R.some(r=>r.id===k)).length+"/"+R.length));
+ const lock=el("button",{class:"btn",onclick:async()=>{const{error}=await sb.from("settings").upsert({key:"locked",value:locked()?"false":"true"});if(error)fail(error);else reload()}},locked()?"Unlock teachers":"Lock marks for teachers");
+ const csv=el("button",{class:"btn",onclick:()=>{const q=x=>'"'+String(x).replace(/"/g,'""')+'"';
+  const lines=[["No","Name",...sj,"Average","Grade","Position","Result"].map(q).join(",")];
+  R.forEach(r=>lines.push([r.no,q(r.name),...r.sc.map(p=>fmt(p,1)),fmt(r.avg,1),r.g?r.g[1]:"",r.pos,r.res].join(",")));
+  const a=el("a",{href:URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv"})),download:"Form"+S.form+"_results.csv"});document.body.append(a);a.click();a.remove()}},"Download CSV");
+ const hd=el("tr",null,["No.","Student",...sj,"Avg %","Grade","Pos","Result"].map(h=>el("th",null,h)));
+ const body=R.map(r=>el("tr",null,el("td",null,r.no),el("td",{class:"l"},r.name),r.sc.map(p=>el("td",{class:p!==null&&Math.round(p)<passMark()?"f":""},fmt(p))),el("td",null,fmt(r.avg,1)),el("td",null,r.g?r.g[1]:""),el("td",null,r.pos),el("td",{class:r.res==="FAIL"?"f":""},r.res)));
+ return el("div",null,el("div",{class:"card"},el("p",{class:"mu"},"Marks entered so far (percentages shown):"),el("div",{class:"chips"},chips),el("div",{class:"row",style:"margin-top:10px"},lock,csv)),el("div",{class:"card scroll"},el("table",null,hd,body)))}
+function cardView(){
+ const R=calc(),sj=subjects();if(!R.length)return noStu();if(S.card>=R.length)S.card=0;
+ const r=R[S.card];
+ const hta=el("textarea",{rows:3,maxlength:400,style:TA},S.hc[r.id]||"");
+ const hbox=el("div",{class:"card noprint"},el("b",null,"Head teacher’s comment (type here)"),hta,el("div",{class:"row",style:"margin-top:8px"},el("button",{class:"btn pri",onclick:async()=>{const{error}=await sb.from("head_comments").upsert({student_id:r.id,text:hta.value.trim(),updated_by:S.user.id});if(error)fail(error);else{S.hc[r.id]=hta.value.trim();render()}}},"Save comment")));
+ const sel=el("select",{onchange:e=>{S.card=+e.target.value;render()}},R.map((x,i)=>el("option",{value:i,selected:i===S.card},(i+1)+". "+x.name)));
+ const tr=sj.map((n,i)=>{const p=r.sc[i],g=p===null?null:gradeOf(p),m=S.mx[n]&&S.mx[n][r.id];
+  return el("tr",null,el("td",null,i+1),el("td",{class:"l"},n),el("td",null,p===null?"":fmt(p)+"%"+(m&&Number(m.out_of)!==100?" ("+m.mark+"/"+m.out_of+")":"")),el("td",{class:g&&g[1]===failG()?"f":""},g?g[1]:""),el("td",null,g?g[2]:""))});
+ return el("div",null,el("div",{class:"row noprint"},el("button",{class:"btn",onclick:()=>{S.card=Math.max(0,S.card-1);render()}},"‹ Prev"),sel,el("button",{class:"btn",onclick:()=>{S.card=Math.min(R.length-1,S.card+1);render()}},"Next ›"),el("button",{class:"btn pri",onclick:()=>window.print()},"Print")),
+  el("div",{class:"card rc"},el("h2",null,SCHOOL),el("div",{class:"sub"},"STUDENT REPORT CARD — Form "+S.form+", "+termLine()),
+   el("p",null,el("b",null,"Name: "),r.name),
+   el("div",{class:"scroll"},el("table",null,el("tr",null,["No.","Subject","Mark","Grade","Remark"].map(h=>el("th",null,h))),tr)),
+   el("p",null,el("b",null,"Average: "),fmt(r.avg,1)+(r.avg===null?"":"%"),"   ",el("b",null,"Grade: "),r.g?r.g[1]:"","   ",el("b",null,"Position: "),r.pos?r.pos+" of "+R.filter(x=>x.avg!==null).length:"","   ",el("b",null,"Result: "),r.res),
+   el("p",null,el("b",null,"Class teacher’s comment: "),S.cc[r.id]||"—"),el("p",null,el("b",null,"Head teacher’s comment: "),S.hc[r.id]||"—"),
+   el("p",{class:"mu"},keyLine()),el("p",null,"Class Teacher: "+(S.set["class_teacher_"+S.form]||"")+"   Signature: ____________________"),
+   el("p",null,"Head Teacher: "+(S.set.head_teacher||"")+"   Signature: ____________________")),hbox)}
+function teachersView(){
+ const staff=S.profiles.filter(p=>p.role!=="pending"),sj=subjects();
+ const pr=S.profiles.map(p=>el("tr",null,el("td",{class:"l"},p.full_name||"(no name)"),el("td",{class:"l"},p.email||""),
+  el("td",null,el("select",{disabled:!isAdmin()&&(p.role==="head"||p.role==="admin"),onchange:async e=>{const{error}=await sb.from("profiles").update({role:e.target.value}).eq("id",p.id);if(error)fail(error);else reload()}},
+   roleOpts(shown(p.role)).map(o=>el("option",{value:o[0],selected:o[0]===shown(p.role)},o[1]))))));
+ const ar=sj.map(n=>{const cur=S.assign.find(a=>a.form===S.form&&a.subject===n);
+  return el("tr",null,el("td",{class:"l"},n),el("td",null,el("select",{onchange:async e=>{try{let r=await sb.from("assignments").delete().eq("form",S.form).eq("subject",n);if(r.error)throw r.error;
+    if(e.target.value){r=await sb.from("assignments").insert({teacher_id:e.target.value,form:S.form,subject:n});if(r.error)throw r.error}await reload()}catch(x){fail(x)}}},
+   el("option",{value:""},"— none —"),staff.map(p=>el("option",{value:p.id,selected:cur&&cur.teacher_id===p.id},p.full_name||p.email)))))});
+ return el("div",null,el("div",{class:"card scroll"},el("b",null,"Accounts — approve teachers here"),el("table",null,el("tr",null,["Name","Email","Role"].map(h=>el("th",null,h))),pr)),
+  el("div",{class:"card scroll"},el("b",null,"Who marks which subject in Form "+S.form),el("table",null,el("tr",null,["Subject","Teacher"].map(h=>el("th",null,h))),ar)))}
+function setupView(){
+ const sj=el("textarea",{rows:9,style:TA},subjects().join("\n")),s1=el("span",{class:"mu"});
+ const b1=el("button",{class:"btn pri",onclick:async()=>{const list=sj.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,12);
+  if(!list.length){s1.textContent="Add at least one subject.";return}
+  try{let r=await sb.from("subjects").delete().eq("form",S.form);if(r.error)throw r.error;r=await sb.from("subjects").insert(list.map((n,i)=>({form:S.form,name:n,ord:i+1})));if(r.error)throw r.error;await reload()}catch(e){s1.textContent="Could not save: "+e.message}}},"Save subjects");
+ const f=(k,ph,w)=>el("input",{type:"text",maxlength:60,placeholder:ph,value:S.set[k]||"",style:"width:"+w+"px"});
+ const tm=f("term","Term",110),yr=f("year","Year",90),ct=f("class_teacher_"+S.form,"Class teacher name (Form "+S.form+")",230),ht=f("head_teacher","Head teacher name",230),s2=el("span",{class:"mu"});
+ const b2=el("button",{class:"btn pri",onclick:async()=>{const{error}=await sb.from("settings").upsert([["term",tm],["year",yr],["class_teacher_"+S.form,ct],["head_teacher",ht]].map(x=>({key:x[0],value:x[1].value.trim()})));if(error)s2.textContent="Could not save: "+error.message;else{await reload()}}},"Save");
+ const sc=scale34(),ins=sc.map(v=>el("input",{type:"number",class:"m",min:0,max:100,value:v})),s3=el("span",{class:"mu"});
+ const b3=el("button",{class:"btn pri",onclick:async()=>{const a=ins.map(x=>parseFloat(x.value));
+  if(a.some(x=>isNaN(x)||x<0||x>100)||a.some((x,i)=>i&&x>=a[i-1])){s3.textContent="Each grade must start lower than the one above it (0 to 100).";return}
+  const{error}=await sb.from("settings").upsert({key:"scale34",value:JSON.stringify(a)});if(error)s3.textContent="Could not save: "+error.message;else await reload()}},"Save boundaries");
+ const scaleCard=upper()?el("div",{class:"card"},el("b",null,"Grade boundaries, Forms 3 and 4"),el("p",{class:"mu"},"Lowest mark (%) for each grade. Grade 9 is anything below grade 8. Check these and change them to match your school’s policy."),
+  el("div",{class:"scroll"},el("table",null,el("tr",null,["Grade","Meaning","From mark (%)"].map(h=>el("th",null,h))),ins.map((x,i)=>el("tr",null,el("td",null,MEANS[i][0]),el("td",{class:"l"},MEANS[i][1]+" · "+MEANS[i][2]),el("td",null,x))))),
+  el("div",{class:"row",style:"margin-top:8px"},b3,s3)):null;
+ return el("div",null,scaleCard,el("div",{class:"card"},el("b",null,"Subjects for Form "+S.form+" (one per line, up to 12)"),sj,el("p",{class:"mu"},"Renaming a subject starts a new empty mark sheet for it."),el("div",{class:"row"},b1,s1)),
+  el("div",{class:"card"},el("b",null,"Report card details"),el("div",{class:"row",style:"margin-top:8px"},tm,yr),el("div",{class:"row"},ct,ht),el("div",{class:"row"},b2,s2)))}
+
+function render(){
+ const tabs=[["entry","Enter marks"],["comments","Comments"],["students","Students"]].concat(isHead()?[["results","Class results"],["cards","Report cards"],["teachers","Teachers"],["setup","Setup"]]:[]);
+ const fs=el("select",{onchange:async e=>{if(S.dirty&&!confirm("Discard unsaved marks?")){e.target.value=S.form;return}S.form=+e.target.value;S.card=0;S.sub=null;try{await loadMarks()}catch(x){fail(x)}loadDraft();render()}},[1,2,3,4].map(n=>el("option",{value:n,selected:n===S.form},"Form "+n)));
+ const V={entry:entryView,comments:commentsView,students:studentsView,results:resultsView,cards:cardView,teachers:teachersView,setup:setupView};
+ const tab=tabs.some(t=>t[0]===S.tab)?S.tab:"entry";
+ app.replaceChildren(
+  el("header",{class:"noprint"},el("div",{class:"top"},el("div",null,el("h1",null,SCHOOL+" — Results"),el("p",null,termLine()+" · "+(S.prof.full_name||S.user.email)+" · "+({admin:"Administrator",head:"Head teacher"}[S.prof.role]||"Teacher"))),
+   el("button",{class:"btn",onclick:()=>sb.auth.signOut().then(()=>loginView())},"Sign out"))),
+  el("div",{class:"row noprint",style:"margin-top:12px"},el("label",null,"Class: "),fs,el("button",{class:"btn",onclick:()=>{if(S.dirty&&!confirm("Discard unsaved marks?"))return;reload()}},"Refresh")),
+  el("div",{class:"tabs noprint"},tabs.map(t=>el("button",{class:tab===t[0]?"on":"",onclick:()=>{S.tab=t[0];render()}},t[1]))),
+  V[tab]())}
+sb.auth.getSession().then(({data})=>data.session?start(data.session.user):loginView());
+</script></body></html>
